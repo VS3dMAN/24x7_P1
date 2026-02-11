@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
+
+
     const gridContainer = document.getElementById('video-grid');
     const overlay = document.getElementById('video-overlay');
     const overlayVideo = document.getElementById('overlay-video');
@@ -16,14 +18,14 @@ document.addEventListener('DOMContentLoaded', () => {
         video.src = `${VIDEO_PATH}${index}.mp4`;
         video.muted = true;
         video.loop = true;
-        video.playsInline = true; // Important for mobile
-        video.autoplay = true; // Autoplay grid videos
-        // Note: Autoplay might be blocked by browsers if not interacting, but muted usually works.
+        video.playsInline = true;
+        video.autoplay = false; // Disable initial autoplay to save resources
+        video.muted = true; // Still needed for autoplay logic later
 
         // Error handling for missing videos
         video.onerror = () => {
             console.error(`Video ${index}.mp4 not found.`);
-            tile.style.backgroundColor = '#222'; // Fallback
+            tile.style.backgroundColor = '#222';
             tile.innerHTML = '<span style="color:#555; display:flex; justify-content:center; align-items:center; height:100%;">Video not found</span>';
         };
 
@@ -41,6 +43,27 @@ document.addEventListener('DOMContentLoaded', () => {
     for (let i = 1; i <= TOTAL_VIDEOS; i++) {
         gridContainer.appendChild(createVideoTile(i));
     }
+
+    // Intro Animation
+    setTimeout(() => {
+        document.body.classList.add('loaded');
+
+        // Start playing videos now that animation is done (or almost done)
+        // Stagger them slightly if needed, or just play all.
+        const allVideos = document.querySelectorAll('.video-tile video');
+        allVideos.forEach(v => {
+            v.play().catch(e => console.log("Auto-play prevented", e));
+        });
+
+        // Wait for CSS transition (0.8s) to finish before swapping for real logo
+        setTimeout(() => {
+            document.body.classList.add('animation-complete');
+            const preloader = document.getElementById('preloader');
+            if (preloader) {
+                preloader.remove();
+            }
+        }, 800);
+    }, 3000);
 
     // Open Overlay
     function openOverlay(src) {
