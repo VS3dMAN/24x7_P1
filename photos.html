@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>24x7 Productions | Visual Stories, Anytime</title>
+    <meta name="description" content="Official portfolio of 24x7 Productions. Visual Stories, Anytime.">
+
+    <!-- Security Meta Tags -->
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' data:; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="photos-style.css">
+</head>
+
+<body>
+
+    <header class="site-header">
+        <div class="header-content">
+            <div class="brand-name">24x7 Productions</div>
+            <nav class="header-nav">
+                <a href="index.html" class="nav-btn">Videos</a>
+                <a href="mailto:contact@24x7productions.com" class="contact-btn">Get in Touch</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div id="masonry-grid" class="masonry-grid">
+            <!-- Images will be injected here by photos-script.js -->
+        </div>
+        <div id="loader" class="loader">Loading gallery...</div>
+    </main>
+
+    <!-- Lightbox Overlay -->
+    <div id="lightbox" class="lightbox">
+        <span id="close-btn" class="close-btn">&times;</span>
+        <img id="lightbox-img" class="lightbox-img" src="" alt="Enlarged Image">
+    </div>
+
+    <script src="photos-script.js"></script>
+</body>
+
+</html>

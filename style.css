@@ -47,6 +47,14 @@ header {
     pointer-events: auto;
 }
 
+.header-nav {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    pointer-events: auto;
+}
+
+.nav-btn,
 .contact-btn {
     text-decoration: none;
     color: var(--text-color);
@@ -56,12 +64,16 @@ header {
     border-radius: 20px;
     transition: all var(--transition-speed) ease;
     backdrop-filter: blur(5px);
-    pointer-events: auto;
 }
 
+.nav-btn:hover,
 .contact-btn:hover {
     background-color: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.8);
+}
+
+.nav-btn {
+    background-color: rgba(255, 255, 255, 0.06);
 }
 
 /* Video Grid */
