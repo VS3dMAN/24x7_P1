@@ -7,46 +7,64 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const IMAGE_PATH = 'images/';
     const EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
-    const MAX_IMAGES = 100; // Upper bound for sequential scanning
+    const MAX_IMAGES = 200;
 
     let imagesLoaded = 0;
     let totalFound = 0;
+    let allImages = []; // Track all image sources for arrow-key navigation
+    let currentIndex = -1;
 
     /**
-     * Try to load an image at the given path.
-     * Returns a promise that resolves to true if the image exists, false otherwise.
+     * Probe whether an image exists at the given path.
      */
     function probeImage(src) {
         return new Promise((resolve) => {
             const img = new Image();
-            img.onload = () => resolve(true);
-            img.onerror = () => resolve(false);
+            img.onload = () => resolve(src);
+            img.onerror = () => resolve(null);
             img.src = src;
         });
     }
 
     /**
-     * Discover images by trying sequential numbers (1, 2, 3, ...)
-     * across all supported extensions.
+     * For a given index, try all extensions in parallel and return first match.
+     */
+    async function probeIndex(i) {
+        const results = await Promise.all(
+            EXTENSIONS.map(ext => probeImage(`${IMAGE_PATH}${i}.${ext}`))
+        );
+        return results.find(r => r !== null) || null;
+    }
+
+    /**
+     * Batch-probe images in parallel chunks for faster discovery.
+     * Probes in batches of BATCH_SIZE to avoid overwhelming the browser.
      */
     async function discoverImages() {
+        const BATCH_SIZE = 10;
         const foundImages = [];
 
-        for (let i = 1; i <= MAX_IMAGES; i++) {
-            let found = false;
+        for (let start = 1; start <= MAX_IMAGES; start += BATCH_SIZE) {
+            const end = Math.min(start + BATCH_SIZE - 1, MAX_IMAGES);
+            const batch = [];
 
-            for (const ext of EXTENSIONS) {
-                const src = `${IMAGE_PATH}${i}.${ext}`;
-                const exists = await probeImage(src);
-                if (exists) {
-                    foundImages.push(src);
-                    found = true;
-                    break; // Found this number, move to next
+            for (let i = start; i <= end; i++) {
+                batch.push(probeIndex(i));
+            }
+
+            const results = await Promise.all(batch);
+            let hadGap = false;
+
+            for (const result of results) {
+                if (result) {
+                    foundImages.push(result);
+                } else {
+                    hadGap = true;
                 }
             }
 
-            // If no extension matched for this number, stop scanning
-            if (!found) {
+            // Stop if entire batch had no images (we're past the last one)
+            if (results.every(r => r === null)) {
                 break;
             }
         }
@@ -54,8 +72,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return foundImages;
     }
 
+    // ===== Fade-in Observer =====
+    const fadeObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+                fadeObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.05 });
+
     /**
-     * Create a masonry grid item for a given image source.
+     * Create a masonry grid item.
      */
     function createMasonryItem(src, index) {
         const item = document.createElement('div');
@@ -65,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
         img.src = src;
         img.alt = `Gallery image ${index + 1}`;
         img.loading = 'lazy';
+        img.decoding = 'async';
         img.draggable = false;
 
         img.addEventListener('load', () => {
@@ -75,7 +104,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         img.addEventListener('error', () => {
-            // Hide broken items
             item.style.display = 'none';
             imagesLoaded++;
             if (imagesLoaded >= totalFound) {
@@ -83,69 +111,100 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Click to open lightbox
         item.addEventListener('click', () => {
-            openLightbox(src);
+            openLightbox(index);
         });
 
         item.appendChild(img);
+        fadeObserver.observe(item);
         return item;
     }
 
-    /**
-     * Open the lightbox with the given image source.
-     */
-    function openLightbox(src) {
-        lightboxImg.src = src;
-        lightboxImg.alt = 'Enlarged gallery image';
+    // ===== Lightbox =====
 
-        // Show lightbox with transition
+    function openLightbox(index) {
+        currentIndex = index;
+        lightboxImg.src = allImages[index];
+        lightboxImg.alt = `Gallery image ${index + 1}`;
+
         requestAnimationFrame(() => {
             lightbox.classList.add('active');
         });
 
-        document.body.style.overflow = 'hidden'; // Prevent background scroll
+        document.body.style.overflow = 'hidden';
+
+        // Preload adjacent images for instant navigation
+        preloadAdjacent(index);
     }
 
-    /**
-     * Close the lightbox.
-     */
     function closeLightbox() {
         lightbox.classList.remove('active');
         document.body.style.overflow = '';
+        currentIndex = -1;
 
-        // Clear image after transition
         setTimeout(() => {
             lightboxImg.src = '';
         }, 350);
     }
 
+    function navigateLightbox(direction) {
+        if (currentIndex < 0) return;
+        const newIndex = currentIndex + direction;
+        if (newIndex >= 0 && newIndex < allImages.length) {
+            currentIndex = newIndex;
+            lightboxImg.src = allImages[currentIndex];
+            lightboxImg.alt = `Gallery image ${currentIndex + 1}`;
+            preloadAdjacent(currentIndex);
+        }
+    }
+
+    function preloadAdjacent(index) {
+        [-1, 1].forEach(offset => {
+            const i = index + offset;
+            if (i >= 0 && i < allImages.length) {
+                const link = document.createElement('link');
+                link.rel = 'prefetch';
+                link.as = 'image';
+                link.href = allImages[i];
+                document.head.appendChild(link);
+            }
+        });
+    }
+
     // ===== Event Listeners =====
 
-    // Close lightbox on button click
     closeBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         closeLightbox();
     });
 
-    // Close lightbox on backdrop click
     lightbox.addEventListener('click', (e) => {
         if (e.target === lightbox) {
             closeLightbox();
         }
     });
 
-    // Close lightbox on Escape key
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && lightbox.classList.contains('active')) {
-            closeLightbox();
+        if (!lightbox.classList.contains('active')) return;
+
+        switch (e.key) {
+            case 'Escape':
+                closeLightbox();
+                break;
+            case 'ArrowLeft':
+                navigateLightbox(-1);
+                break;
+            case 'ArrowRight':
+                navigateLightbox(1);
+                break;
         }
     });
 
-    // ===== Initialize Gallery =====
+    // ===== Initialize =====
 
     async function init() {
         const images = await discoverImages();
+        allImages = images;
         totalFound = images.length;
 
         if (totalFound === 0) {
@@ -153,9 +212,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const fragment = document.createDocumentFragment();
         images.forEach((src, index) => {
-            grid.appendChild(createMasonryItem(src, index));
+            fragment.appendChild(createMasonryItem(src, index));
         });
+        grid.appendChild(fragment);
     }
 
     init();

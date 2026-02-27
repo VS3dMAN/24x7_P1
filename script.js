@@ -7,24 +7,59 @@ document.addEventListener('DOMContentLoaded', () => {
     const TOTAL_VIDEOS = 14;
     const VIDEO_PATH = 'vidsss/';
 
+    // ===== IntersectionObserver: only play videos in viewport =====
+    const playObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            const video = entry.target.querySelector('video');
+            if (!video) return;
+
+            if (entry.isIntersecting) {
+                // Load and play when visible
+                if (video.dataset.src && !video.src) {
+                    video.src = video.dataset.src;
+                }
+                video.play().catch(() => { });
+            } else {
+                // Pause when off-screen to save resources
+                video.pause();
+            }
+        });
+    }, {
+        rootMargin: '100px', // Start loading slightly before entering viewport
+        threshold: 0.1
+    });
+
+    // ===== Fade-in Observer: animate tiles as they scroll into view =====
+    const fadeObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+                fadeObserver.unobserve(entry.target); // Only animate once
+            }
+        });
+    }, {
+        threshold: 0.05
+    });
+
     // Function to create video tile
     function createVideoTile(index) {
         const tile = document.createElement('div');
         tile.className = 'video-tile';
 
         const video = document.createElement('video');
-        video.src = `${VIDEO_PATH}${index}.mp4`;
+        // Use data-src for lazy loading; src set by IntersectionObserver
+        video.dataset.src = `${VIDEO_PATH}${index}.mp4`;
         video.muted = true;
         video.loop = true;
-        video.playsInline = true; // Important for mobile
-        video.autoplay = true; // Autoplay grid videos
-        // Note: Autoplay might be blocked by browsers if not interacting, but muted usually works.
+        video.playsInline = true;
+        video.preload = 'none'; // Don't preload until visible
+        video.setAttribute('decoding', 'async');
 
         // Error handling for missing videos
         video.onerror = () => {
             console.error(`Video ${index}.mp4 not found.`);
-            tile.style.backgroundColor = '#222'; // Fallback
-            tile.innerHTML = '<span style="color:#555; display:flex; justify-content:center; align-items:center; height:100%;">Video not found</span>';
+            tile.style.backgroundColor = '#222';
+            tile.innerHTML = '<span style="color:#555;display:flex;justify-content:center;align-items:center;height:100%;">Video not found</span>';
         };
 
         tile.appendChild(video);
@@ -34,55 +69,55 @@ document.addEventListener('DOMContentLoaded', () => {
             openOverlay(`${VIDEO_PATH}${index}.mp4`);
         });
 
+        // Observe for lazy play + fade-in
+        playObserver.observe(tile);
+        fadeObserver.observe(tile);
+
         return tile;
     }
 
-    // Generate grid
+    // Generate grid — use DocumentFragment for a single DOM reflow
+    const fragment = document.createDocumentFragment();
     for (let i = 1; i <= TOTAL_VIDEOS; i++) {
-        gridContainer.appendChild(createVideoTile(i));
+        fragment.appendChild(createVideoTile(i));
     }
+    gridContainer.appendChild(fragment);
 
-    // Open Overlay
+    // ===== Overlay =====
+
     function openOverlay(src) {
         overlay.classList.remove('hidden');
-        // Force reflow/paint specific class addition for transition if needed, 
-        // but removing hidden then adding active works best with a small delay or just standard class swap.
-        // Let's just use 'active' class for the opacity transition and remove 'hidden'.
-        // Actually, in CSS I used .overlay.active.
-
-        // Wait a tick to allow display:flex to apply before opacity transition
         requestAnimationFrame(() => {
             overlay.classList.add('active');
         });
 
         overlayVideo.src = src;
-        overlayVideo.muted = false; // Enable sound in overlay
-        overlayVideo.play().catch(e => console.log("Overlay play prevented:", e));
+        overlayVideo.muted = false;
+        overlayVideo.play().catch(e => console.log('Overlay play prevented:', e));
+        document.body.style.overflow = 'hidden';
     }
 
-    // Close Overlay
     function closeOverlay() {
         overlay.classList.remove('active');
+        document.body.style.overflow = '';
 
-        // Wait for transition to finish before hiding
         setTimeout(() => {
             overlay.classList.add('hidden');
             overlayVideo.pause();
-            overlayVideo.src = ""; // Reset src to stop buffering/playing
-        }, 300); // Match CSS transition speed
+            overlayVideo.removeAttribute('src');
+            overlayVideo.load(); // Release buffered data
+        }, 300);
     }
 
     // Event Listeners for closing
     closeBtn.addEventListener('click', closeOverlay);
 
-    // Close on click outside video (optional but good UX)
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {
             closeOverlay();
         }
     });
 
-    // Close on Escape key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && !overlay.classList.contains('hidden')) {
             closeOverlay();

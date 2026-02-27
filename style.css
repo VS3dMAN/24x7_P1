@@ -22,6 +22,17 @@ body {
     height: 100vh;
     display: flex;
     flex-direction: column;
+    animation: pageIn 0.6s ease-out;
+}
+
+@keyframes pageIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 /* Header */
@@ -92,13 +103,22 @@ main#video-grid {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    /* Ensure zoom stays within tile */
     border: 4px solid var(--border-color);
-    /* Thicker border */
     cursor: pointer;
     background-color: #000;
-    /* Fallback bg */
     transition: border-color var(--transition-speed) ease;
+    will-change: border-color;
+    /* Fade-in animation on scroll */
+    opacity: 0;
+    transform: translateY(12px);
+    transition: border-color var(--transition-speed) ease,
+        opacity 0.5s ease,
+        transform 0.5s ease;
+}
+
+.video-tile.visible {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .video-tile video {
@@ -107,7 +127,7 @@ main#video-grid {
     object-fit: cover;
     display: block;
     transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94), filter 0.3s ease;
-    /* Smooth internal zoom */
+    will-change: transform;
 }
 
 /* Hover Effect */
@@ -134,6 +154,8 @@ main#video-grid {
     width: 100%;
     height: 100%;
     background-color: var(--overlay-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -141,6 +163,7 @@ main#video-grid {
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease, visibility 0.3s ease;
+    cursor: zoom-out;
 }
 
 .overlay.active {
